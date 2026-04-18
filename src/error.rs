@@ -1,38 +1,43 @@
-use std::fmt;
-use std::io;
+//! Unified error type for baton.
 
-/// Central error type for baton operations.
+use std::fmt;
+use std::path::PathBuf;
+
 #[derive(Debug)]
 pub enum BatonError {
-    /// I/O error from the OS.
-    Io(io::Error),
-    /// A PID file operation failed.
-    PidFile(String),
-    /// Socket setup or passing failed.
-    Socket(String),
-    /// Process handoff failed.
-    Handoff(String),
-    /// Signal handling error.
-    Signal(String),
-    /// Configuration error.
+    Io(std::io::Error),
+    /// A lock file is already held by another process.
+    LockHeld(PathBuf),
+    /// PID file already exists with a running process.
+    PidFileExists(PathBuf),
+    /// Handoff timed out waiting for child readiness.
+    HandoffTimeout,
+    /// Child process exited unexpectedly.
+    ChildExited(i32),
+    /// Signal delivery failed.
+    SignalFailed(i32),
+    /// Environment variable error.
+    EnvError(String),
+    /// Generic configuration error.
     Config(String),
-    /// Child process error.
-    Child(String),
-    /// Timeout waiting for readiness.
-    ReadyTimeout,
+    /// Other error with message.
+    Other(String),
 }
+
+pub type Result<T> = std::result::Result<T, BatonError>;
 
 impl fmt::Display for BatonError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BatonError::Io(e) => write!(f, "I/O error: {}", e),
-            BatonError::PidFile(msg) => write!(f, "PID file error: {}", msg),
-            BatonError::Socket(msg) => write!(f, "Socket error: {}", msg),
-            BatonError::Handoff(msg) => write!(f, "Handoff error: {}", msg),
-            BatonError::Signal(msg) => write!(f, "Signal error: {}", msg),
-            BatonError::Config(msg) => write!(f, "Config error: {}", msg),
-            BatonError::Child(msg) => write!(f, "Child error: {}", msg),
-            BatonError::ReadyTimeout => write!(f, "Timed out waiting for process readiness"),
+            BatonError::LockHeld(p) => write!(f, "lock already held: {}", p.display()),
+            BatonError::PidFileExists(p) => write!(f, "PID file exists: {}", p.display()),
+            BatonError::HandoffTimeout => write!(f, "handoff timed out"),
+            BatonError::ChildExited(code) => write!(f, "child exited with code {}", code),
+            BatonError::SignalFailed(sig) => write!(f, "failed to send signal {}", sig),
+            BatonError::EnvError(msg) => write!(f, "environment error: {}", msg),
+            BatonError::Config(msg) => write!(f, "configuration error: {}", msg),
+            BatonError::Other(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -46,11 +51,8 @@ impl std::error::Error for BatonError {
     }
 }
 
-impl From<io::Error> for BatonError {
-    fn from(e: io::Error) -> Self {
+impl From<std::io::Error> for BatonError {
+    fn from(e: std::io::Error) -> Self {
         BatonError::Io(e)
     }
 }
-
-/// Convenience alias used throughout baton.
-pub type Result<T> = std::result::Result<T, BatonError>;
