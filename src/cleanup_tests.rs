@@ -59,4 +59,16 @@ mod tests {
         let reg2 = reg.clone();
         assert_eq!(reg2.len(), 1);
     }
+
+    #[test]
+    fn test_run_clears_registry() {
+        let dir = tempdir().unwrap();
+        let p = create_temp_file(dir.path(), "clear.tmp");
+        let reg = CleanupRegistry::new();
+        reg.register(&p);
+        assert_eq!(reg.len(), 1);
+        reg.run();
+        // After run, the registry should be empty
+        assert!(reg.is_empty());
+    }
 }
