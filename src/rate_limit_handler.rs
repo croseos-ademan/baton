@@ -30,6 +30,20 @@ impl RateLimitHandler {
         limiter.available_tokens()
     }
 
+    /// Returns whether rate limiting is currently enabled.
+    pub fn is_enabled(&self) -> bool {
+        let limiter = self.limiter.lock().unwrap_or_else(|e| e.into_inner());
+        limiter.config().enabled
+    }
+
+    /// Resets the rate limiter state to its initial configuration.
+    /// Useful when restarting a supervised process after a manual intervention.
+    pub fn reset(&self) -> Result<(), BatonError> {
+        let mut limiter = self.limiter.lock().map_err(|_| BatonError::LockPoisoned)?;
+        limiter.reset();
+        Ok(())
+    }
+
     /// Clone the inner Arc for sharing across threads.
     pub fn clone_handle(&self) -> Self {
         RateLimitHandler {
